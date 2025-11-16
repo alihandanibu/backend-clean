@@ -1,0 +1,15 @@
+{
+    "require": {
+        "doctrine/annotations": "^2.0",
+        "zircote/swagger-php": "4.5.*",
+        "mikecao/flight": "^3.17",
+        "firebase/php-jwt": "^6.11"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\services\\": "services/",
+            "app\\dao\\": "dao/",
+            "app\\middleware\\": "middleware/"
+        }
+    }
+}
