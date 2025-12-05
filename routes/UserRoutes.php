@@ -2,6 +2,8 @@
 
 use OpenApi\Annotations as OA;
 
+require_once __DIR__ . '/../data/Roles.php';
+
 
 /**
  * @OA\Get(
@@ -19,7 +21,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users', function() {
+\Flight::route('GET /users', function() {
+    // Only admins and users can see all users
+    \Flight::AuthMiddleware()->authorizeRoles([Roles::ADMIN, Roles::USER]);
+    
     $userService = \Flight::UserService();
     $result = $userService->getAllUsers();
     echo json_encode($result);
@@ -48,7 +53,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users/@id', function($id) {
+\Flight::route('GET /users/@id', function($id) {
+    // Any authenticated user can view user details
+    \Flight::AuthMiddleware()->authorizeRoles([Roles::ADMIN, Roles::USER]);
+    
     $userService = \Flight::UserService();
     $result = $userService->getUserById($id);
     echo json_encode($result);
@@ -85,7 +93,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::put('/users/@id', function($id) {
+\Flight::route('PUT /users/@id', function($id) {
+    // Only admin can update any user, or user can update themselves
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $id) {
+        \Flight::halt(403, json_encode(['message' => 'You can only update your own profile']));
+    }
+    
     $input = \Flight::request()->data;
     $userService = \Flight::UserService();
     $result = $userService->updateUser($id, $input);
@@ -115,7 +129,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::delete('/users/@id', function($id) {
+\Flight::route('DELETE /users/@id', function($id) {
+    // Only admin can delete users
+    \Flight::AuthMiddleware()->authorizeRole(Roles::ADMIN);
+    
     $userService = \Flight::UserService();
     $result = $userService->deleteUser($id);
     echo json_encode($result);

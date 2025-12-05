@@ -2,6 +2,8 @@
 
 use OpenApi\Annotations as OA;
 
+require_once __DIR__ . '/../data/Roles.php';
+
 
 /**
  * @OA\Get(
@@ -26,7 +28,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users/@userId/skills', function($userId) {
+\Flight::route('GET /users/@userId/skills', function($userId) {
+    // Any authenticated user can view skills
+    \Flight::AuthMiddleware()->authorizeRoles([Roles::ADMIN, Roles::USER]);
+    
     $skillService = \Flight::SkillService();
     $result = $skillService->getSkillsByUser($userId);
     echo json_encode($result);
@@ -65,7 +70,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::post('/users/@userId/skills', function($userId) {
+\Flight::route('POST /users/@userId/skills', function($userId) {
+    // Only admin or the user themselves can add skills
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only add skills to your own profile']));
+    }
+    
     $input = \Flight::request()->data;
     $skillService = \Flight::SkillService();
     $result = $skillService->addSkill($userId, $input);
@@ -107,7 +118,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::put('/users/@userId/skills/@skillId', function($userId, $skillId) {
+\Flight::route('PUT /users/@userId/skills/@skillId', function($userId, $skillId) {
+    // Only admin or the user themselves can update their skills
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only update your own skills']));
+    }
+    
     $input = \Flight::request()->data;
     $skillService = \Flight::SkillService();
     $result = $skillService->updateSkill($userId, $skillId, $input);
@@ -142,7 +159,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::delete('/users/@userId/skills/@skillId', function($userId, $skillId) {
+\Flight::route('DELETE /users/@userId/skills/@skillId', function($userId, $skillId) {
+    // Only admin or the user themselves can delete their skills
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only delete your own skills']));
+    }
+    
     $skillService = \Flight::SkillService();
     $result = $skillService->deleteSkill($userId, $skillId);
     echo json_encode($result);

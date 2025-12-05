@@ -1,5 +1,5 @@
 <?php
-require_once 'BaseDAO.php';
+namespace dao;
 
 class UserDAO extends BaseDAO {
     public function __construct() {

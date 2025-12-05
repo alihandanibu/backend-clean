@@ -2,6 +2,8 @@
 
 use OpenApi\Annotations as OA;
 
+require_once __DIR__ . '/../data/Roles.php';
+
 
 /**
  * @OA\Post(
@@ -29,7 +31,8 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::post('/contact', function() {
+\Flight::route('POST /contact', function() {
+    // Public endpoint - no authentication required
     $input = \Flight::request()->data;
     $contactService = \Flight::ContactService();
     $result = $contactService->submitContact($input);
@@ -58,7 +61,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users/@userId/contacts', function($userId) {
+\Flight::route('GET /users/@userId/contacts', function($userId) {
+    // Only admin can view submitted contact messages
+    \Flight::AuthMiddleware()->authorizeRole(Roles::ADMIN);
+    
     $contactService = \Flight::ContactService();
     $result = $contactService->getContactsByUser($userId);
     echo json_encode($result);
@@ -92,7 +98,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::delete('/users/@userId/contacts/@contactId', function($userId, $contactId) {
+\Flight::route('DELETE /users/@userId/contacts/@contactId', function($userId, $contactId) {
+    // Only admin can delete contact messages
+    \Flight::AuthMiddleware()->authorizeRole(Roles::ADMIN);
+    
     $contactService = \Flight::ContactService();
     $result = $contactService->deleteContact($userId, $contactId);
     echo json_encode($result);

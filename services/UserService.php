@@ -1,16 +1,13 @@
 <?php
-namespace app\services;
+namespace services;
 
-use app\dao\UserDAO;
-use app\middleware\AuthMiddleware;
+use dao\UserDAO;
 
 class UserService {
     private $userDAO;
-    private $authMiddleware;
 
     public function __construct() {
         $this->userDAO = new UserDAO();
-        $this->authMiddleware = new AuthMiddleware();
     }
 
     public function register($data) {
@@ -20,6 +17,11 @@ class UserService {
 
         if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             return ['success' => false, 'message' => 'Invalid email format'];
+        }
+
+        // POPRAVLJENO: findByEmail umjesto getByEmail
+        if ($this->userDAO->findByEmail($data['email'])) {
+             return ['success' => false, 'message' => 'Email already exists'];
         }
 
         $hashedPassword = password_hash($data['password'], PASSWORD_BCRYPT);
@@ -42,7 +44,8 @@ class UserService {
     }
 
     public function login($email, $password) {
-        $user = $this->userDAO->getByEmail($email);
+        // POPRAVLJENO: findByEmail umjesto getByEmail
+        $user = $this->userDAO->findByEmail($email);
         
         if (!$user) {
             return ['success' => false, 'message' => 'User not found'];
@@ -52,22 +55,32 @@ class UserService {
             return ['success' => false, 'message' => 'Invalid password'];
         }
 
-        $token = $this->authMiddleware->generateToken($user['id']);
+        // Generate JWT token
+        unset($user['password']);
         
+        $jwt_payload = [
+            'user' => $user,
+            'iat' => time(),
+            'exp' => time() + (60 * 60 * 24) // valid for 1 day
+        ];
+
+        $token = \Firebase\JWT\JWT::encode(
+            $jwt_payload,
+            \Database::JWT_SECRET(),
+            'HS256'
+        );
+
         return [
             'success' => true,
             'message' => 'Login successful',
-            'token' => $token,
-            'user' => [
-                'id' => $user['id'],
-                'name' => $user['name'],
-                'email' => $user['email']
-            ]
+            'user' => $user,
+            'token' => $token
         ];
     }
 
     public function getUserById($userId) {
-        $user = $this->userDAO->read($userId);
+        // POPRAVLJENO: findById umjesto read
+        $user = $this->userDAO->findById($userId);
         
         if (!$user) {
             return ['success' => false, 'message' => 'User not found'];
@@ -78,7 +91,8 @@ class UserService {
     }
 
     public function getAllUsers() {
-        $users = $this->userDAO->readAll();
+        // POPRAVLJENO: findAll umjesto readAll
+        $users = $this->userDAO->findAll();
         
         foreach ($users as &$user) {
             unset($user['password']);
@@ -88,7 +102,8 @@ class UserService {
     }
 
     public function updateUser($userId, $data) {
-        $user = $this->userDAO->read($userId);
+        // POPRAVLJENO: findById umjesto read
+        $user = $this->userDAO->findById($userId);
         
         if (!$user) {
             return ['success' => false, 'message' => 'User not found'];

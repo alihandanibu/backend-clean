@@ -2,6 +2,8 @@
 
 use OpenApi\Annotations as OA;
 
+require_once __DIR__ . '/../data/Roles.php';
+
 
 /**
  * @OA\Get(
@@ -25,7 +27,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users/@userId/experiences', function($userId) {
+\Flight::route('GET /users/@userId/experiences', function($userId) {
+    // Any authenticated user can view experiences
+    \Flight::AuthMiddleware()->authorizeRoles([Roles::ADMIN, Roles::USER]);
+    
     $experienceService = \Flight::ExperienceService();
     $result = $experienceService->getExperienceByUser($userId);
     echo json_encode($result);
@@ -65,7 +70,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::post('/users/@userId/experiences', function($userId) {
+\Flight::route('POST /users/@userId/experiences', function($userId) {
+    // Only admin or the user themselves can add experiences
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only add experiences to your own profile']));
+    }
+    
     $input = \Flight::request()->data;
     $experienceService = \Flight::ExperienceService();
     $result = $experienceService->addExperience($userId, $input);
@@ -109,7 +120,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::put('/users/@userId/experiences/@experienceId', function($userId, $experienceId) {
+\Flight::route('PUT /users/@userId/experiences/@experienceId', function($userId, $experienceId) {
+    // Only admin or the user themselves can update their experiences
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only update your own experiences']));
+    }
+    
     $input = \Flight::request()->data;
     $experienceService = \Flight::ExperienceService();
     $result = $experienceService->updateExperience($userId, $experienceId, $input);
@@ -144,7 +161,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::delete('/users/@userId/experiences/@experienceId', function($userId, $experienceId) {
+\Flight::route('DELETE /users/@userId/experiences/@experienceId', function($userId, $experienceId) {
+    // Only admin or the user themselves can delete their experiences
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only delete your own experiences']));
+    }
+    
     $experienceService = \Flight::ExperienceService();
     $result = $experienceService->deleteExperience($userId, $experienceId);
     echo json_encode($result);

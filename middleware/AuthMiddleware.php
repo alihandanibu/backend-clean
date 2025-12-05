@@ -1,54 +1,65 @@
 <?php
-namespace app\middleware;
+namespace middleware;
+
+require_once __DIR__ . '/../config/Database.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class AuthMiddleware {
-    private $secretKey = 'your_secret_key_change_this_in_production';
-    private $algorithm = 'HS256';
-
-    public function generateToken($userId) {
-        $issuedAt = time();
-        $expire = $issuedAt + (60 * 60 * 24); // 24 hours
-
-        $payload = [
-            'iat' => $issuedAt,
-            'exp' => $expire,
-            'user_id' => $userId
-        ];
-
-        $token = JWT::encode($payload, $this->secretKey, $this->algorithm);
-        return $token;
+    
+    public function extractToken($server) {
+        // Check Authorization header
+        if (isset($server['HTTP_AUTHORIZATION'])) {
+            $authHeader = $server['HTTP_AUTHORIZATION'];
+            if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+                return $matches[1];
+            }
+            return $authHeader;
+        }
+        
+        // Check Authentication header (custom)
+        if (isset($server['HTTP_AUTHENTICATION'])) {
+            return $server['HTTP_AUTHENTICATION'];
+        }
+        
+        return null;
     }
 
     public function verifyToken($token) {
+        if (!$token) {
+            \Flight::halt(401, json_encode(['valid' => false, 'message' => 'Missing authentication token']));
+        }
+
         try {
-            $decoded = JWT::decode($token, new Key($this->secretKey, $this->algorithm));
-            return ['valid' => true, 'user_id' => $decoded->user_id];
+            $decoded_token = JWT::decode($token, new Key(\Database::JWT_SECRET(), 'HS256'));
+            \Flight::set('user', $decoded_token->user);
+            \Flight::set('jwt_token', $token);
+            return ['valid' => true, 'user' => $decoded_token->user];
         } catch (\Exception $e) {
-            return ['valid' => false, 'message' => $e->getMessage()];
+            \Flight::halt(401, json_encode(['valid' => false, 'message' => $e->getMessage()]));
         }
     }
 
-    public function decodeToken($token) {
-        try {
-            $decoded = JWT::decode($token, new Key($this->secretKey, $this->algorithm));
-            return $decoded;
-        } catch (\Exception $e) {
-            throw new \Exception('Invalid token: ' . $e->getMessage());
+    public function authorizeRole($requiredRole) {
+        $user = \Flight::get('user');
+        if (!$user || $user->role !== $requiredRole) {
+            \Flight::halt(403, json_encode(['message' => 'Access denied: insufficient privileges']));
         }
     }
 
-    public function extractToken($request) {
-        $headers = getallheaders();
-        if (isset($headers['Authorization'])) {
-            $parts = explode(' ', $headers['Authorization']);
-            if (count($parts) === 2 && $parts[0] === 'Bearer') {
-                return $parts[1];
-            }
+    public function authorizeRoles($roles) {
+        $user = \Flight::get('user');
+        if (!$user || !in_array($user->role, $roles)) {
+            \Flight::halt(403, json_encode(['message' => 'Forbidden: role not allowed']));
         }
-        return null;
+    }
+
+    public function authorizePermission($permission) {
+        $user = \Flight::get('user');
+        if (!$user || !isset($user->permissions) || !in_array($permission, $user->permissions)) {
+            \Flight::halt(403, json_encode(['message' => 'Access denied: permission missing']));
+        }
     }
 }
 ?>

@@ -2,6 +2,8 @@
 
 use OpenApi\Annotations as OA;
 
+require_once __DIR__ . '/../data/Roles.php';
+
 
 /**
  * @OA\Get(
@@ -25,7 +27,10 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::get('/users/@userId/projects', function($userId) {
+\Flight::route('GET /users/@userId/projects', function($userId) {
+    // Any authenticated user can view projects
+    \Flight::AuthMiddleware()->authorizeRoles([Roles::ADMIN, Roles::USER]);
+    
     $projectService = \Flight::ProjectService();
     $result = $projectService->getProjectsByUser($userId);
     echo json_encode($result);
@@ -66,7 +71,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::post('/users/@userId/projects', function($userId) {
+\Flight::route('POST /users/@userId/projects', function($userId) {
+    // Only admin or the user themselves can add projects to their profile
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only add projects to your own profile']));
+    }
+    
     $input = \Flight::request()->data;
     $projectService = \Flight::ProjectService();
     $result = $projectService->addProject($userId, $input);
@@ -111,7 +122,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::put('/users/@userId/projects/@projectId', function($userId, $projectId) {
+\Flight::route('PUT /users/@userId/projects/@projectId', function($userId, $projectId) {
+    // Only admin or the user themselves can update their projects
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only update your own projects']));
+    }
+    
     $input = \Flight::request()->data;
     $projectService = \Flight::ProjectService();
     $result = $projectService->updateProject($userId, $projectId, $input);
@@ -146,7 +163,13 @@ use OpenApi\Annotations as OA;
  *     )
  * )
  */
-\Flight::delete('/users/@userId/projects/@projectId', function($userId, $projectId) {
+\Flight::route('DELETE /users/@userId/projects/@projectId', function($userId, $projectId) {
+    // Only admin or the user themselves can delete their projects
+    $currentUser = \Flight::get('user');
+    if ($currentUser->role !== Roles::ADMIN && $currentUser->id != $userId) {
+        \Flight::halt(403, json_encode(['message' => 'You can only delete your own projects']));
+    }
+    
     $projectService = \Flight::ProjectService();
     $result = $projectService->deleteProject($userId, $projectId);
     echo json_encode($result);

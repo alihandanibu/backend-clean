@@ -1,5 +1,10 @@
 <?php
+
+namespace dao;
+
 require_once __DIR__ . '/../config/Database.php';
+
+use PDO;
 
 abstract class BaseDAO {
     protected $conn;
@@ -7,7 +12,7 @@ abstract class BaseDAO {
 
     public function __construct($table) {
         $this->table = $table;
-        $database = new Database();
+        $database = new \Database();
         $this->conn = $database->getConnection();
     }
 

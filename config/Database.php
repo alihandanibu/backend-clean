@@ -7,6 +7,11 @@ class Database {
     private $password = '';
     public $conn;
 
+    // JWT Secret Key
+    public static function JWT_SECRET() {
+        return 'your_super_secret_key_portfolio_2025_xyz123';
+    }
+
     public function getConnection() {
         $this->conn = null;
         try {
